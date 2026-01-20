@@ -55,15 +55,18 @@ class Backtester:
             else:
                 df['position'] = 0  # Default to no position if no signal column
             
-            # Detect Buy & Hold strategy: all signals are 1.0
-            is_buy_and_hold = (df['signal'].fillna(0) == 1.0).all() if 'signal' in df.columns else False
+            # Check if this is a Buy & Hold strategy (constant 1.0 signal throughout)
+            # If so, don't apply shift to allow immediate entry
+            is_buy_and_hold = ('signal' in df.columns and 
+                              len(df['signal'].dropna()) == len(df) and 
+                              df['signal'].dropna().eq(1.0).all())
             
             if is_buy_and_hold:
-                # Buy & Hold: Don't shift, enter on day 0 (or actually day 1 for fairness)
-                # Apply position from first day
-                df['position'] = df['position'].bfill().fillna(0)
+                # For buy & hold strategy, no need to shift - start holding immediately
+                df['position'] = df['position'].fillna(0)
             else:
-                # Other strategies: Shift positions by 1 day (signals applied next day)
+                # Apply consistent logic for other strategies: 
+                # Shift positions by 1 day (signals applied next day)
                 # This is more realistic: signal at close t, trade at open t+1
                 df['position'] = df['position'].shift(1).bfill().fillna(0)
             
