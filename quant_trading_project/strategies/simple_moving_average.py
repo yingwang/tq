@@ -4,11 +4,48 @@ A basic trend-following strategy using moving average crossovers
 """
 import pandas as pd
 import numpy as np
+from .base_strategy import BaseStrategy
+
+
+class SimpleMovingAverageStrategy(BaseStrategy):
+    """
+    Simple Moving Average Crossover Strategy
+    
+    Buy signal when short SMA crosses above long SMA
+    Sell signal when short SMA crosses below long SMA
+    """
+    
+    def __init__(self, symbol, short_window=20, long_window=50):
+        super().__init__(symbol)
+        self.short_window = short_window
+        self.long_window = long_window
+        
+    def generate_signals(self, data):
+        signals = pd.DataFrame(index=data.index)
+        signals['signal'] = 0.0
+        
+        # Calculate moving averages
+        signals['SMA_short'] = data['Close'].rolling(window=self.short_window).mean()
+        signals['SMA_long'] = data['Close'].rolling(window=self.long_window).mean()
+        
+        # Generate signals using .loc to avoid index length issues
+        condition = (
+            (signals['SMA_short'] > signals['SMA_long']) &
+            (signals['SMA_short'].shift(1) <= signals['SMA_long'].shift(1))
+        )
+        signals.loc[self.long_window:, 'signal'] = np.where(
+            condition[self.long_window:], 1.0, 0.0
+        )
+        
+        # Generate actual trading signals
+        signals['positions'] = signals['signal'].diff()
+        
+        return signals
 
 
 def sma_crossover_strategy(data: pd.DataFrame, short_window: int = 20, long_window: int = 50) -> pd.Series:
     """
-    Simple Moving Average Crossover Strategy
+    Simple Moving Average Crossover Strategy (Legacy function)
     
     Buy signal when short SMA crosses above long SMA
     Sell signal when short SMA crosses below long SMA
@@ -42,7 +79,7 @@ def sma_crossover_strategy(data: pd.DataFrame, short_window: int = 20, long_wind
 
 def buy_hold_strategy(data: pd.DataFrame) -> pd.Series:
     """
-    Buy and Hold Strategy
+    Buy and Hold Strategy (Legacy function)
     
     Simply hold a long position throughout the entire period
     
@@ -59,7 +96,7 @@ def buy_hold_strategy(data: pd.DataFrame) -> pd.Series:
 
 def mean_reversion_strategy(data: pd.DataFrame, window: int = 20, deviation: float = 1.0) -> pd.Series:
     """
-    Mean Reversion Strategy
+    Mean Reversion Strategy (Legacy function)
     
     Buy when price falls significantly below moving average
     Sell when price rises significantly above moving average

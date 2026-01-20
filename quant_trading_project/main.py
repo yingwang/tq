@@ -8,7 +8,14 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from data.data_fetcher import DataFetcher
 from backtest.backtester import Backtester
-from strategies.simple_moving_average import sma_crossover_strategy, buy_hold_strategy, mean_reversion_strategy
+from strategies.simple_moving_average import SimpleMovingAverageStrategy
+from strategies.momentum_strategy import MomentumStrategy
+from strategies.bollinger_bands_strategy import BollingerBandsStrategy
+from strategies.rsi_strategy import RSIStrategy
+from strategies.macd_strategy import MACDStrategy
+from strategies.stochastic_oscillator_strategy import StochasticOscillatorStrategy
+from strategies.adx_trend_strategy import ADXTrendStrategy
+from strategies.vwap_strategy import VWAPStrategy
 from utils.logger_config import setup_logger
 from config.settings import DEFAULT_SYMBOLS, DEFAULT_INITIAL_CAPITAL
 
@@ -33,58 +40,44 @@ def main():
         print("\nFirst few rows:")
         print(data.head())
         
-        # Run SMA crossover strategy backtest
+        # Define all strategies with their parameters
+        strategies = [
+            ("Simple Moving Average", SimpleMovingAverageStrategy(symbol, short_window=20, long_window=50)),
+            ("Momentum Strategy", MomentumStrategy(symbol, short_window=10, long_window=30)),
+            ("Bollinger Bands", BollingerBandsStrategy(symbol, window=20, num_std_dev=2)),
+            ("RSI Strategy", RSIStrategy(symbol, rsi_period=14, oversold=30, overbought=70)),
+            ("MACD Strategy", MACDStrategy(symbol, fast_period=12, slow_period=26, signal_period=9)),
+            ("Stochastic Oscillator", StochasticOscillatorStrategy(symbol, k_period=14, d_period=3, oversold=20, overbought=80)),
+            ("ADX Trend Strategy", ADXTrendStrategy(symbol, adx_period=14, adx_threshold=25)),
+            ("VWAP Strategy", VWAPStrategy(symbol, lookback_period=20, threshold=0.02))
+        ]
+        
+        results = []
+        
+        # Run backtest for each strategy
+        for strategy_name, strategy in strategies:
+            print("\n" + "="*60)
+            print(f"RUNNING {strategy_name.upper()} BACKTEST")
+            print("="*60)
+            
+            backtester_instance = Backtester()
+            strategy_results = backtester_instance.run_backtest(
+                data=data,
+                strategy_obj=strategy,
+                initial_capital=DEFAULT_INITIAL_CAPITAL
+            )
+            
+            backtester_instance.print_summary()
+            results.append((strategy_name, strategy_results))
+        
+        # Show comprehensive comparison
         print("\n" + "="*60)
-        print("RUNNING SMA CROSSOVER STRATEGY BACKTEST")
+        print("COMPREHENSIVE STRATEGY COMPARISON")
         print("="*60)
-        
-        sma_results = backtester.run_backtest(
-            strategy_func=sma_crossover_strategy,
-            data=data,
-            initial_capital=DEFAULT_INITIAL_CAPITAL,
-            short_window=20,
-            long_window=50
-        )
-        
-        backtester.print_summary()
-        
-        # Run buy & hold strategy for comparison
-        print("\n" + "="*60)
-        print("RUNNING BUY & HOLD STRATEGY BACKTEST (for comparison)")
-        print("="*60)
-        
-        backtester_comparison = Backtester()
-        buy_hold_results = backtester_comparison.run_backtest(
-            strategy_func=buy_hold_strategy,
-            data=data,
-            initial_capital=DEFAULT_INITIAL_CAPITAL
-        )
-        
-        backtester_comparison.print_summary()
-        
-        # Run mean reversion strategy
-        print("\n" + "="*60)
-        print("RUNNING MEAN REVERSION STRATEGY BACKTEST")
-        print("="*60)
-        
-        backtester_mr = Backtester()
-        mr_results = backtester_mr.run_backtest(
-            strategy_func=mean_reversion_strategy,
-            data=data,
-            initial_capital=DEFAULT_INITIAL_CAPITAL,
-            window=20,
-            deviation=1.0
-        )
-        
-        backtester_mr.print_summary()
-        
-        # Show comparison
-        print("\n" + "="*60)
-        print("STRATEGY COMPARISON")
-        print("="*60)
-        print(f"SMA Crossover:   {sma_results['total_return']:.2f}% return, Sharpe: {sma_results['sharpe_ratio']:.2f}")
-        print(f"Buy & Hold:      {buy_hold_results['total_return']:.2f}% return, Sharpe: {buy_hold_results['sharpe_ratio']:.2f}")
-        print(f"Mean Reversion:  {mr_results['total_return']:.2f}% return, Sharpe: {mr_results['sharpe_ratio']:.2f}")
+        print(f"{'Strategy':<20} {'Total Return %':<15} {'Sharpe Ratio':<15} {'Max Drawdown %':<15}")
+        print("-"*70)
+        for strategy_name, result in results:
+            print(f"{strategy_name:<20} {result['total_return']:<15.2f} {result['sharpe_ratio']:<15.2f} {result['max_drawdown']:<15.2f}")
         
         logger.info("All backtests completed successfully")
         
