@@ -30,22 +30,31 @@ class BollingerBandsStrategy(BaseStrategy):
         signals['lower_band'] = lower_band
         
         # 当价格从下向上突破下轨时买入
-        signals['buy_signal'] = (
+        buy_signal = (
             (data['Close'] > lower_band) &
             (data['Close'].shift(1) <= lower_band.shift(1))
         )
         
         # 当价格从上向下突破上轨时卖出
-        signals['sell_signal'] = (
+        sell_signal = (
             (data['Close'] < upper_band) &
             (data['Close'].shift(1) >= upper_band.shift(1))
         )
         
-        # 设置交易信号
-        signals.loc[signals['buy_signal'], 'signal'] = 1.0
-        signals.loc[signals['sell_signal'], 'signal'] = -1.0
+        # 初始化持仓（持续持仓直到反向信号）
+        signal_arr = np.zeros(len(data))
+        current_position = 0.0
+        
+        for i in range(len(data)):
+            if buy_signal.iloc[i]:
+                current_position = 1.0
+            elif sell_signal.iloc[i]:
+                current_position = 0.0
+            signal_arr[i] = current_position
+        
+        signals['signal'] = signal_arr
         
         # 生成实际交易信号
         signals['positions'] = signals['signal'].diff()
-        
+
         return signals

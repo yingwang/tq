@@ -33,20 +33,30 @@ class VWAPStrategy(BaseStrategy):
         price_deviation = (data['Close'] - vwap) / vwap
         
         # 当价格低于VWAP超过阈值时买入
-        signals['buy_signal'] = (
+        buy_signal = (
             (price_deviation < -self.threshold) &
             (price_deviation.shift(1) >= -self.threshold)
         )
         
         # 当价格高于VWAP超过阈值时卖出
-        signals['sell_signal'] = (
+        sell_signal = (
             (price_deviation > self.threshold) &
             (price_deviation.shift(1) <= self.threshold)
         )
         
-        # 设置交易信号
-        signals.loc[signals['buy_signal'], 'signal'] = 1.0
-        signals.loc[signals['sell_signal'], 'signal'] = -1.0
+        # 初始化持仓（持续持仓直到反向信号）
+        signal_arr = np.zeros(len(data))
+        current_position = 0.0
+        
+        for i in range(len(data)):
+            if i > 0:
+                if buy_signal.iloc[i]:
+                    current_position = 1.0
+                elif sell_signal.iloc[i]:
+                    current_position = 0.0
+            signal_arr[i] = current_position
+        
+        signals['signal'] = signal_arr
         
         # 生成实际交易信号
         signals['positions'] = signals['signal'].diff()

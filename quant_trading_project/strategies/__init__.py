@@ -9,7 +9,6 @@ from .bollinger_bands_strategy import BollingerBandsStrategy
 from .rsi_strategy import RSIStrategy
 from .macd_strategy import MACDStrategy
 from .stochastic_oscillator_strategy import StochasticOscillatorStrategy
-from .adx_trend_strategy import ADXTrendStrategy
 from .vwap_strategy import VWAPStrategy
 
 __all__ = [
@@ -20,6 +19,5 @@ __all__ = [
     'RSIStrategy',
     'MACDStrategy',
     'StochasticOscillatorStrategy',
-    'ADXTrendStrategy',
     'VWAPStrategy'
 ]

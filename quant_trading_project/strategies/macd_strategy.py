@@ -32,20 +32,29 @@ class MACDStrategy(BaseStrategy):
         signals['histogram'] = histogram
         
         # 当MACD线上穿信号线时买入
-        signals['buy_signal'] = (
+        buy_signal = (
             (macd > signal) &
             (macd.shift(1) <= signal.shift(1))
         )
         
         # 当MACD线下穿信号线时卖出
-        signals['sell_signal'] = (
+        sell_signal = (
             (macd < signal) &
             (macd.shift(1) >= signal.shift(1))
         )
         
-        # 设置交易信号
-        signals.loc[signals['buy_signal'], 'signal'] = 1.0
-        signals.loc[signals['sell_signal'], 'signal'] = -1.0
+        # 初始化持仓（持续持仓直到反向信号）
+        signal_arr = np.zeros(len(data))
+        current_position = 0.0
+        
+        for i in range(len(data)):
+            if buy_signal.iloc[i]:
+                current_position = 1.0
+            elif sell_signal.iloc[i]:
+                current_position = 0.0
+            signal_arr[i] = current_position
+        
+        signals['signal'] = signal_arr
         
         # 生成实际交易信号
         signals['positions'] = signals['signal'].diff()

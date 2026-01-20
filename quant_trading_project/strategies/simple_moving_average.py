@@ -28,16 +28,37 @@ class SimpleMovingAverageStrategy(BaseStrategy):
         signals['SMA_short'] = data['Close'].rolling(window=self.short_window).mean()
         signals['SMA_long'] = data['Close'].rolling(window=self.long_window).mean()
         
-        # Generate signals using .loc to avoid index length issues
-        condition = (
-            (signals['SMA_short'] > signals['SMA_long']) &
-            (signals['SMA_short'].shift(1) <= signals['SMA_long'].shift(1))
-        )
-        signals.loc[self.long_window:, 'signal'] = np.where(
-            condition[self.long_window:], 1.0, 0.0
-        )
+        # Generate buy/sell signals based on crossover
+        # Buy when SMA_short > SMA_long (and was not before)
+        sma_short_arr = signals['SMA_short'].values
+        sma_long_arr = signals['SMA_long'].values
         
-        # Generate actual trading signals
+        # Initialize signal array
+        signal_arr = np.zeros(len(data))
+        current_position = 0.0  # 0 = not in position, 1.0 = in position
+        
+        for i in range(1, len(data)):
+            # Skip NaN values
+            if np.isnan(sma_short_arr[i]) or np.isnan(sma_long_arr[i]):
+                signal_arr[i] = current_position
+                continue
+            
+            # Check for crossover
+            is_above_now = sma_short_arr[i] > sma_long_arr[i]
+            is_above_before = sma_short_arr[i-1] > sma_long_arr[i-1]
+            
+            if is_above_now and not is_above_before:
+                # Buy signal: crossover upward
+                current_position = 1.0
+            elif not is_above_now and is_above_before:
+                # Sell signal: crossover downward
+                current_position = 0.0
+            
+            signal_arr[i] = current_position
+        
+        signals['signal'] = signal_arr
+        
+        # Generate actual trading signals (for entry/exit tracking)
         signals['positions'] = signals['signal'].diff()
         
         return signals

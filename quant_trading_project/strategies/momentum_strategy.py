@@ -22,21 +22,31 @@ class MomentumStrategy(BaseStrategy):
         signals['price_change_short'] = data['Close'].pct_change(periods=self.short_window)
         signals['price_change_long'] = data['Close'].pct_change(periods=self.long_window)
         
-        # 当短期动量大于长期动量且为正时买入
-        condition_buy = (
-            (signals['price_change_short'] > signals['price_change_long']) &
-            (signals['price_change_short'] > 0)
-        )
-        signals.loc[self.long_window:, 'signal'] = np.where(
-            condition_buy[self.long_window:], 1.0, 0.0
-        )
+        # 初始化持仓
+        signal_arr = np.zeros(len(data))
+        current_position = 0.0
         
-        # 当短期动量小于长期动量且为负时卖出
-        condition_sell = (
-            (signals['price_change_short'] < signals['price_change_long']) &
-            (signals['price_change_short'] < 0)
-        )
-        signals.loc[(condition_sell) & (signals['signal'] == 0.0), 'signal'] = -1.0
+        for i in range(self.long_window, len(data)):
+            # 买入条件：短期动量大于长期动量且为正
+            buy_condition = (
+                signals['price_change_short'].iloc[i] > signals['price_change_long'].iloc[i] and
+                signals['price_change_short'].iloc[i] > 0
+            )
+            
+            # 卖出条件：短期动量小于长期动量且为负
+            sell_condition = (
+                signals['price_change_short'].iloc[i] < signals['price_change_long'].iloc[i] and
+                signals['price_change_short'].iloc[i] < 0
+            )
+            
+            if buy_condition:
+                current_position = 1.0
+            elif sell_condition:
+                current_position = 0.0
+            
+            signal_arr[i] = current_position
+        
+        signals['signal'] = signal_arr
         
         # 生成实际交易信号
         signals['positions'] = signals['signal'].diff()

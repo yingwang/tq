@@ -29,29 +29,38 @@ class StochasticOscillatorStrategy(BaseStrategy):
         denominator = high_max - low_min
         denominator = denominator.replace(0, np.nan)  # 将零替换为NaN以避免除零错误
         k_percent = 100 * ((data['Close'] - low_min) / denominator)
-        k_percent = k_percent.fillna(method='bfill')  # 用前向填充处理NaN值
+        k_percent = k_percent.bfill()  # 用后向填充处理NaN值
         d_percent = k_percent.rolling(window=self.d_period).mean()
         
         signals['k_percent'] = k_percent
         signals['d_percent'] = d_percent
         
         # 当%K线从下向上穿越%D线且在超卖区时买入
-        signals['buy_signal'] = (
+        buy_signal = (
             (k_percent > d_percent) &
             (k_percent.shift(1) <= d_percent.shift(1)) &
             (k_percent <= self.oversold)
         )
         
         # 当%K线从上向下穿越%D线且在超买区时卖出
-        signals['sell_signal'] = (
+        sell_signal = (
             (k_percent < d_percent) &
             (k_percent.shift(1) >= d_percent.shift(1)) &
             (k_percent >= self.overbought)
         )
         
-        # 设置交易信号
-        signals.loc[signals['buy_signal'], 'signal'] = 1.0
-        signals.loc[signals['sell_signal'], 'signal'] = -1.0
+        # 初始化持仓（持续持仓直到反向信号）
+        signal_arr = np.zeros(len(data))
+        current_position = 0.0
+        
+        for i in range(len(data)):
+            if buy_signal.iloc[i]:
+                current_position = 1.0
+            elif sell_signal.iloc[i]:
+                current_position = 0.0
+            signal_arr[i] = current_position
+        
+        signals['signal'] = signal_arr
         
         # 生成实际交易信号
         signals['positions'] = signals['signal'].diff()

@@ -32,20 +32,29 @@ class RSIStrategy(BaseStrategy):
         signals['rsi'] = rsi
         
         # 当RSI从下向上穿越超卖线时买入
-        signals['buy_signal'] = (
+        buy_signal = (
             (rsi > self.oversold) &
             (rsi.shift(1) <= self.oversold)
         )
         
         # 当RSI从上向下穿越超买线时卖出
-        signals['sell_signal'] = (
+        sell_signal = (
             (rsi < self.overbought) &
             (rsi.shift(1) >= self.overbought)
         )
         
-        # 设置交易信号
-        signals.loc[signals['buy_signal'], 'signal'] = 1.0
-        signals.loc[signals['sell_signal'], 'signal'] = -1.0
+        # 初始化持仓（持续持仓直到反向信号）
+        signal_arr = np.zeros(len(data))
+        current_position = 0.0
+        
+        for i in range(len(data)):
+            if buy_signal.iloc[i]:
+                current_position = 1.0
+            elif sell_signal.iloc[i]:
+                current_position = 0.0
+            signal_arr[i] = current_position
+        
+        signals['signal'] = signal_arr
         
         # 生成实际交易信号
         signals['positions'] = signals['signal'].diff()
