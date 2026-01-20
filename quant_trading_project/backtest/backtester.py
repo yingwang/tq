@@ -16,12 +16,13 @@ class Backtester:
         self.logger = logging.getLogger(__name__)
         self.results = {}
     
-    def run_backtest(self, strategy_func, data: pd.DataFrame, initial_capital: float = 10000.0, **kwargs):
+    def run_backtest(self, data: pd.DataFrame, strategy_func=None, strategy_obj=None, initial_capital: float = 10000.0, **kwargs):
         """
         Run backtest for a given strategy
         
         Args:
-            strategy_func: Strategy function that takes data and returns signals
+            strategy_func: Legacy strategy function that takes data and returns signals
+            strategy_obj: New strategy object that inherits from BaseStrategy
             data: Price data with OHLCV columns
             initial_capital: Starting capital for simulation
             **kwargs: Additional arguments for strategy function
@@ -30,8 +31,15 @@ class Backtester:
             dict: Backtest results including equity curve, metrics, etc.
         """
         try:
-            # Generate trading signals
-            signals = strategy_func(data, **kwargs)
+            # Generate trading signals using either legacy function or new strategy object
+            if strategy_obj is not None:
+                # Using new object-oriented approach
+                signals = strategy_obj.generate_signals(data)
+            elif strategy_func is not None:
+                # Using legacy functional approach
+                signals = strategy_func(data, **kwargs)
+            else:
+                raise ValueError("Either strategy_func or strategy_obj must be provided")
             
             # Combine signals with price data
             df = data.copy()
@@ -41,7 +49,12 @@ class Backtester:
                 df['signal'] = signals
             
             # Initialize portfolio variables
-            df['position'] = df['signal'].fillna(0).replace({-1: 0}).astype(int)  # Convert short signals to 0
+            # Handle both legacy and new signal formats
+            if 'signal' in df.columns:
+                df['position'] = df['signal'].fillna(0).replace({-1: 0}).astype(int)  # Convert short signals to 0
+            else:
+                df['position'] = 0  # Default to no position if no signal column
+            
             df['position'] = df['position'].shift(1).fillna(0)  # Positions are applied next day
             df['returns'] = df['Close'].pct_change()
             df['strategy_returns'] = df['position'] * df['returns']
